@@ -8,12 +8,12 @@ fn main() {
     let from_input:u32 = get_number_from_user("from: ");
     let to_input:u32 = get_number_from_user("to: ");
 
-    //Getting the number of threads from user with a max of 32
-    let mut number_of_threads:u32 = get_valid_number();
-
     //If from is greater than to, they swap values
     let from = if ( to_input < from_input) {to_input} else {from_input};
     let to = if ( to_input < from_input) {from_input} else {to_input};
+
+    //Getting the number of threads from user with a max of 32
+    let mut number_of_threads:u32 = get_valid_number(from, to);
 
     let index_at_mutex_arc = Arc::new(Mutex::new(from));
     let list_of_primes_mutex_arc = Arc::new(Mutex::new(Vec::new()));
@@ -75,8 +75,8 @@ fn get_number_from_user(message:&str) -> u32 {
     }
 }
 
-fn get_valid_number() -> u32 {
-    const MAX_NUMBER_OF_THREADS:u32 = 32;
+fn get_valid_number(from:u32, to:u32 ) -> u32 {
+    const MAX_NUMBER_OF_THREADS:u32 = to - from - 1;
     loop {
         let number_of_threads:u32 = get_number_from_user("Number of threads (Max: 32)");
         if (number_of_threads > MAX_NUMBER_OF_THREADS) {
