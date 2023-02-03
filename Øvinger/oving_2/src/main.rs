@@ -1,10 +1,11 @@
 mod worker_threads;
 
 use crate::worker_threads::WorkerThreads;
+use std::thread;
 
 fn main() {
     println!("Finally works");
-    let rectangle = Square{
+    let rectangle = Square {
         width: 2.0,
         height: 4.0,
     };
@@ -14,12 +15,9 @@ fn main() {
     square.print_self();
     println!("{}", square.get_area());
 
-    let mut workers = WorkerThreads::new();
-    workers.add(2);
-    workers.add(53);
-    for v in workers.get() {
-        println!("v: {}", v);
-    }
+    let mut workers = WorkerThreads::new(4);
+    workers.start_loop();
+    thread::sleep(std::time::Duration::from_secs(4));
 }
 
 //Define parameters
@@ -54,7 +52,10 @@ impl Formula for Square {
 impl Square {
     //constructor kinda
     fn new(width: f32, height: f32) -> Square {
-        Square { width: (width), height: (height) }
+        Square {
+            width: (width),
+            height: (height),
+        }
     }
 
     //scuffed to string
