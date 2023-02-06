@@ -49,10 +49,7 @@ fn main() {
 
     //Joining all the threads
     for t in threads {
-        match t.join() {
-            Ok(_) => continue,
-            Err(_) => println!("Thread could not join.."),
-        };
+        t.join().expect("Could not join..");
     }
 
     // Cannot access data without calling lock(), even though locking is unnecessary.
