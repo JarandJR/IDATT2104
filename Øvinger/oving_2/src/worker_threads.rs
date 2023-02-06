@@ -4,7 +4,7 @@ pub struct WorkerThreads {
 
 impl WorkerThreads {
     pub fn new() -> WorkerThreads {
-        WorkerThreads { threads: (Vec::new()) }
+        Self { threads: (Vec::new()) }
     }
 
     pub fn add(&mut self, value: u32) {
