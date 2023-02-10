@@ -30,17 +30,18 @@ fn handle_connection(mut stream: TcpStream) {
     let add = b"GET /add";
     let subtract = b"GET /subtract";
 
+    let request = std::str::from_utf8(&buffer).expect("Could not parse buffer to utf8");
+    let header = _get_header(request);
+
     let mut result = 0;
     let (status_line, filename) = if buffer.starts_with(get) {
         ("HTTP/1.1 200 OK", "index.html")
     } else if buffer.starts_with(add) {
-        let request = std::str::from_utf8(&buffer).expect("msg");
         let (a, b) = _get_params_from_request(request, "/add");
         result = a + b;
 
         ("HTTP/1.1 200 OK", "result.html")
     } else if buffer.starts_with(subtract) {
-        let request = std::str::from_utf8(&buffer).expect("msg");
         let (a, b) = _get_params_from_request(request, "/subtract");
         result = a - b;
 
@@ -52,6 +53,7 @@ fn handle_connection(mut stream: TcpStream) {
     let result = result.to_string();
     let contents = fs::read_to_string(filename).expect("Could not read file");
     let contents = contents.replace("{{result}}", &result);
+    let contents = contents.replace("<li>placeholder</li>", &header);
 
     let response = format!(
         "{}\r\nContent-Length: {}\r\n\r\n{}",
@@ -73,4 +75,15 @@ fn _get_params_from_request(request: &str, method: &str) -> (i32, i32) {
         params[0].parse().expect("Could not parse"),
         params[1].parse().expect("Could not parse"),
     )
+}
+
+fn _get_header(request: &str) -> String {
+    let headers: Vec<&str> = request.split('\n').collect();
+    let mut header = String::new();
+    for i in &headers {
+        if i.trim() != "" {
+            header = format!("{header }\n<li> {i} </li>");
+        }
+    }
+    header
 }
