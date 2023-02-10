@@ -1,86 +1,135 @@
-use std::{thread, sync::{mpsc, Mutex, Arc}};
+use std::collections::VecDeque;
+use std::thread::JoinHandle;
+use std::{
+    sync::{Arc, Condvar, Mutex},
+    thread,
+};
 
-pub struct ThreadPool {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Message>
+pub struct ThreadPool<F>
+where
+    F: FnOnce() + Send + 'static,
+{
+    number_of_workers: u32,
+    threads: Vec<JoinHandle<()>>,
+    tasks: Arc<Mutex<VecDeque<F>>>,
+    running: Arc<Mutex<bool>>,
+    condition_variable: Arc<(Mutex<bool>, Condvar)>,
 }
 
-impl ThreadPool {
-    //Panics if size is less than zero
-    pub fn new(size:usize) -> Self{
-        assert!(size > 0);
-
-        let (sender, receiver) = mpsc::channel();
-
-        let receiver = Arc::new(Mutex::new(receiver));
-
-        let mut workers =Vec::with_capacity(size);
-
-        for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver)));
-        }
-
-        Self {
-            workers,
-            sender
-        }
+impl<F> ThreadPool<F>
+where
+    F: FnOnce() + Send + 'static,
+{
+    pub fn new(number_of_workers: u32) -> Self {
+        let mut pool = Self {
+            number_of_workers,
+            threads: Vec::new(),
+            tasks: Arc::new(Mutex::new(VecDeque::new())),
+            running: Arc::new(Mutex::new(false)),
+            condition_variable: Arc::new((Mutex::new(true), Condvar::new())),
+        };
+        pool.start_loop();
+        pool
     }
 
-    pub fn execute<F>(&self, f: F) where F: FnOnce() + Send + 'static {
-        let task = Box::new(f);
-        self.sender.send(Message::NewTask(task)).unwrap();
-    }
-}
-
-impl Drop for ThreadPool {
-    fn drop(&mut self) {
-        println!("Sending terminate message to workers");
-
-        for _ in &self.workers {
-            self.sender.send(Message::Terminate).unwrap();
+    pub fn start_loop(&mut self) {
+        //Checks if the loop is already running
+        if *self.running.lock().unwrap() {
+            return;
         }
 
-        for worker in &mut self.workers {
-            println!("Shutting down worker {}", worker.id);
-
-            if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
-            }
+        {
+            //starts the loop
+            *self.running.lock().unwrap() = true;
         }
-    }
-}
 
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>
-}
+        for _ in 0..self.number_of_workers {
+            // Copies values so that thread does not take ownership of the variables
+            let tasks_copy = self.tasks.clone();
+            let running_copy = self.running.clone();
+            let condition_variable_copy = self.condition_variable.clone();
 
-impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Self {
-        Self {
-            id,
-            thread: Some(thread::spawn(move || loop {
-                let message = receiver.lock().unwrap().recv().unwrap();
-                println!("Worker {} is executing a task", id);
-                
-                match message {
-                    Message::NewTask(task) => {
-                        println!("Worker {} executing task", id);
-                        task();
+            // Spawns the thread
+            self.threads.push(thread::spawn(move || {
+                println!("{:?} is alive", thread::current().id());
+
+                while *running_copy.lock().unwrap() || !tasks_copy.lock().unwrap().is_empty() {
+                    let (lock, c) = &*condition_variable_copy;
+                    // Waits from signal by the condition variable
+                    // The condition variable is true by default
+                    // Therefor the thread is waiting until the conditional variable is set to false
+                    {
+                        let mut wait = lock.lock().unwrap();
+                        while *wait {
+                            println!("{:?} is waiting", thread::current().id());
+                            wait = c.wait(wait).unwrap();
+                            if !*running_copy.lock().unwrap() {
+                                break;
+                            }
+                        }
                     }
-                    Message::Terminate => {
-                        println!("Worker {} is terminating", id);
-                        break;
-                    }        
+
+                    // Ready to fetch and run tasks
+                    while !tasks_copy.lock().unwrap().is_empty() {
+                        // Defines task
+                        let mut task: Option<F> = None;
+                        {
+                            // Sets task to a value of type fn()
+                            let mut tasks = tasks_copy.lock().unwrap();
+                            if !tasks.is_empty() {
+                                task = tasks.pop_back();
+                            }
+                        }
+
+                        // Checks if task is assigned to a vlaue of type fn()
+                        // If true, then run the function
+                        if let Some(task_to_run) = task {
+                            println!("{:?} is running task", thread::current().id());
+                            task_to_run();
+                        }
+                        println!("{:?} finished running task\n", thread::current().id())
+                    }
+                    // Set the conditional variable back to default
+                    *lock.lock().unwrap() = true;
                 }
-            }))
+                println!("{:?} is dying", thread::current().id());
+            }));
         }
     }
-}
 
-type Task = Box<dyn FnOnce() + Send + 'static>;
+    pub fn post_task(&self, task: F) {
+        self.tasks.lock().unwrap().push_front(task);
+        self.notify_all_threads();
+    }
 
-enum Message {
-    NewTask(Task),
-    Terminate
+    fn notify_one_thread(&self) {
+        let (lock, c) = &*self.condition_variable;
+        *lock.lock().unwrap() = false;
+        c.notify_one();
+    }
+
+    fn notify_all_threads(&self) {
+        let (lock, c) = &*self.condition_variable;
+        *lock.lock().unwrap() = false;
+        c.notify_all();
+    }
+
+    pub fn post_timeout(&self, task: F, seconds: u64) {
+        thread::sleep(std::time::Duration::from_secs(seconds));
+        self.post_task(task);
+    }
+
+    pub fn end_loop(&mut self) {
+        *self.running.lock().unwrap() = false;
+        //Joins the threads
+        while !self.threads.is_empty() {
+            self.notify_all_threads();
+            self.threads
+                .pop()
+                .unwrap()
+                .join()
+                .expect("Could not join thread");
+        }
+        self.notify_one_thread();
+    }
 }
