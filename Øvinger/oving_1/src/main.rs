@@ -17,7 +17,6 @@ fn main() {
     } else {
         to_input
     };
-
     if to % 2 != 0 {
         to += 1;
     }
