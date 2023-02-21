@@ -6,7 +6,6 @@ use std::net::TcpStream;
 use oving_3::ThreadPool;
 
 fn main() {
-    //Note that this will panic at runtime if it fails
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let pool = ThreadPool::new(3);
 
