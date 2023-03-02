@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 actix-cors = "0.6.4"
 actix-web = "4"
+regex = "1.7.1"

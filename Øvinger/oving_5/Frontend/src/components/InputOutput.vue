@@ -14,7 +14,7 @@
 import {ref} from 'vue'
 import axios from "axios";
 
-const input = ref(`fn main() {println!('Hello, world!');}`);
+const input = ref(`fn main() {println!("Hello, world!");}`);
 const result = ref("");
 
 async function compile() {

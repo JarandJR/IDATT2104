@@ -15,22 +15,34 @@ async fn main() -> std::io::Result<()> {
 }
 
 #[post("/post_code")]
-async fn post_code(request: String) -> Json<String> {
+async fn post_code(request: String) -> String {
     println!("Request: {}", request);
-    let command = format!("echo {}", &request);
-    let command = "ping 8.8.8.8";
-    let output = std::process::Command::new("cmd")
-                .args(["/C", &command])
+    let output = std::process::Command::new("docker")
+                .arg("run")
+                .arg("-t")
+                .arg("--rm")
+                .arg("rust:latest")
+                .arg("bash")
+                .arg("-c")
+                .arg(format!(
+                    "cargo new program && cd program && printf '{}' > src/main.rs && cargo run",
+                    request
+                ))
                 .output()
-                .expect("failed to execute process");
+                .expect("Failed to execute process");
 
     let response = std::str::from_utf8(&output.stdout).expect("Could not parse");
     println!("{}", response);
     
-    Json::from(Json(response.to_string()))
+    strip_color_codes(response)
 }
 
 #[get("/get_code")]
 async fn get_code()  -> Json<String> {
     Json::from(Json(format!("Hello from backend")))
+}
+
+fn strip_color_codes(input: &str) -> String {
+    let re = regex::Regex::new("\x1B\\[[0-9;]+m").unwrap();
+    re.replace_all(input, "").to_string()
 }
