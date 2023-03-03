@@ -20,7 +20,7 @@
             ws.onmessage = event => {
                 alert('Message from server: ' + event.data);
                 const c = event.data;
-                drawWithCourdinates(c.startX, c.startY, c.endX, c.endY);
+                //drawWithCourdinates(c.startX, c.startY, c.endX, c.endY);
             };
             ws.onopen = () => ws.send('Hello');
         }

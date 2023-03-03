@@ -7,6 +7,7 @@ pub enum HTTPTag {
     CONNECTION,
     CacheControl,
     UPGRADE,
+    UpgradeInsecureRequests,
     UserAgent,
     AcceptEncoding,
     AcceptLanguage,
@@ -19,14 +20,14 @@ impl HTTPTag {
     pub fn from_string(s: &str) -> Result<HTTPTag, &str> {
         match s {
             "Host:" => Ok(HTTPTag::HOST),
-            "Connection:" => Ok(HTTPTag::CONNECTION),
-            "Cache-Control:" => Ok(HTTPTag::CacheControl),
-            "Upgrade-Insecure-Requests:" => Ok(HTTPTag::UPGRADE),
             "Upgrade:" => Ok(HTTPTag::UPGRADE),
             "User-Agent:" => Ok(HTTPTag::UserAgent),
+            "Connection:" => Ok(HTTPTag::CONNECTION),
+            "Cache-Control:" => Ok(HTTPTag::CacheControl),
             "Accept-Encoding:" => Ok(HTTPTag::AcceptEncoding),
             "Accept-Language:" => Ok(HTTPTag::AcceptLanguage),
             "Sec-WebSocket-Key:" => Ok(HTTPTag::SecWebSocketKey),
+            "Upgrade-Insecure-Requests:" => Ok(HTTPTag::UpgradeInsecureRequests),
             _ => Ok(HTTPTag::UNDEFINED),
         }
     }
@@ -102,13 +103,7 @@ impl HTTPRequest {
         Self { method, headers }
     }
 
-    pub fn get_header_value_string(&mut self, key: &str) -> String {
-        self.headers
-            .remove(&HTTPTag::from_string(key).expect("Could not parse into tag"))
-            .expect("Could not find key value")
-    }
-
-    pub fn get_header_value_key(&mut self, key: HTTPTag) -> String {
-        self.headers.remove(&key).expect("Could not find key value")
+    pub fn get_header_value_key(&mut self, key: HTTPTag) -> Option<String> {
+        self.headers.remove(&key)
     }
 }

@@ -8,7 +8,7 @@ pub struct SocketRequest {
 
 impl SocketRequest {
     pub fn new(mut http_request: HTTPRequest) -> Self {
-        let header_value = http_request.get_header_value_key(HTTPTag::SecWebSocketKey);
+        let header_value = http_request.get_header_value_key(HTTPTag::SecWebSocketKey).expect("Could not find value with key");
         Self {
             http_request,
             sec_key: header_value,

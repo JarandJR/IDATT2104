@@ -1,15 +1,15 @@
-mod http_parser;
 mod pool;
 mod socket;
+mod http_parser;
 
 use std::fs;
 use std::io::prelude::*;
-use std::net::TcpListener;
 use std::net::TcpStream;
+use std::net::TcpListener;
 
-use http_parser::{HTTPRequest, HTTPTag, Method};
 use pool::ThreadPool;
 use socket::SocketRequest;
+use http_parser::{HTTPRequest, HTTPTag, Method};
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
@@ -26,20 +26,22 @@ fn main() {
 
 fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
-    println!("\n{:?}\n", stream);
+    //println!("\n{:?}\n", stream);
     stream.read(&mut buffer).expect("Could not read stream");
 
     let request = std::str::from_utf8(&buffer).expect("Could not parse buffer to utf8");
     //println!("\n{:?}\n", request);
     //println!("{}", _get_header(request));
     let mut http_request = HTTPRequest::new(request);
-
+/* 
     println!("{}", http_request.get_header_value_string("Connection:"));
     println!("{}", http_request.get_header_value_key(HTTPTag::UNDEFINED));
     println!("{:?}", HTTPTag::AcceptEncoding);
-    println!("{:?}", http_request.method);
-    if http_request.get_header_value_key(HTTPTag::UPGRADE) == "websocket" {
-        handle_socket_connection(stream, http_request);
+    println!("{:?}", http_request.method);*/
+    if let Some(upgrade) = http_request.get_header_value_key(HTTPTag::UPGRADE) {
+        if upgrade == "websocket" {
+            handle_socket_connection(stream, http_request);
+        }
     } else {
         handle_http_connection(stream, http_request);
     }
