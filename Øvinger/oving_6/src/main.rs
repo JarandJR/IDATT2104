@@ -1,13 +1,15 @@
-use std::collections::HashMap;
+mod http_parser;
+mod pool;
+mod socket;
+
 use std::fs;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
 
-use oving_6::HTTPTag;
-use oving_6::Method;
-use oving_6::SocketRequest;
-use oving_6::{HTTPRequest, ThreadPool};
+use http_parser::{HTTPRequest, HTTPTag, Method};
+use pool::ThreadPool;
+use socket::SocketRequest;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
