@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Client</title>
+</head>
+<body color="lightblue">
+    <h1>Hello!</h1>
+    <h2>This is a simple WebSocket</h2>
+    <button onclick="Connect()">Connect</button>
+    <canvas id="canvas" width="500px" height="500px" ></canvas>
+    <script>
+        var ws;
+
+        function Connect() {
+            window.ws = 2;
+            drawWithCourdinates(0,0, 100, 200);
+            console.log("Trying to connect..");
+            window.ws = new WebSocket('ws://127.0.0.1:7878');
+            ws.onmessage = event => {
+                alert('Message from server: ' + event.data);
+                const c = event.data;
+                drawWithCourdinates(c.startX, c.startY, c.endX, c.endY);
+            };
+            ws.onopen = () => ws.send('Hello');
+        }
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        let coord = {x:0, y:0};
+
+        document.addEventListener("mousedown", start);
+        document.addEventListener("mouseup", stop);
+
+        function start(event) {
+            reposition(event);
+            document.addEventListener("mousemove", draw);
+        }
+
+        function stop(event) {
+            document.removeEventListener("mousemove", draw);
+        }
+
+        function draw(event) {
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "black";
+            ctx.moveTo(coord.x, coord.y);
+
+            //ws.send(coord);
+            console.log(ws);
+            reposition(event);
+            //ws.send(coord);
+            
+            ctx.lineTo(coord.x, coord.y);
+            ctx.stroke();
+        }
+
+        function drawWithCourdinates (startX, startY, endX, endY) {
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "black";
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+
+        function reposition(event) {
+            coord.x = event.clientX - canvas.offsetLeft;
+            coord.y = event.clientY - canvas.offsetTop;
+        }
+    </script>
+</body>
+</html>
