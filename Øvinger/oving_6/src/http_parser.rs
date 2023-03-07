@@ -90,7 +90,7 @@ impl HTTPRequest {
             if key.is_some() && value.is_some() {
                 let key = HTTPTag::from_string(key.expect("Could not split value"))
                     .expect("Could not parse into tag");
-                let value = String::from(value.expect("Could not split value correctly"));
+                let value = String::from(value.expect("Could not split value correctly").trim());
                 headers.insert(key, value);
             }
         }
