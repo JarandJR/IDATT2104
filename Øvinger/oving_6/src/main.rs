@@ -41,8 +41,23 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 fn handle_socket_connection(stream: TcpStream, http_request: HTTPRequest) {
-    let socket = Socket::new(http_request);
-    socket.accept(stream);
+    let mut socket = Socket::new(http_request, stream);
+    socket.accept();
+
+    //Writer thread
+    std::thread::spawn(move || {
+        loop {
+            //todo add condition variable
+            std::thread::sleep(std::time::Duration::from_millis(50));
+
+        }
+    });
+
+    //Reader thread
+    loop {
+       
+    }
+    
 }
 
 fn handle_http_connection(mut stream: TcpStream, http_request: HTTPRequest) {

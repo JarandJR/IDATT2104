@@ -14,7 +14,6 @@
         var connected = false;
 
         function Connect() {
-            drawWithCoordinates(100, 200);
             console.log("Trying to connect..");
             window.ws = new WebSocket('ws://127.0.0.1:7878');
             ws.onmessage = event => {
@@ -24,6 +23,7 @@
             };
             ws.onopen = () => ws.send('Hello');
             window.connected = true;
+            console.log("Connected");
         }
 
         const canvas = document.getElementById("canvas");

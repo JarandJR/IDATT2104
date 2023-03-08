@@ -6,28 +6,30 @@ use sha1::{Digest, Sha1};
 use crate::http_parser::{HTTPRequest, HTTPTag};
 
 pub struct Socket {
+    stream: TcpStream,
     sec_key: String,
     guid: String,
 }
 
 impl Socket {
-    pub fn new(mut http_request: HTTPRequest) -> Self {
+    pub fn new(mut http_request: HTTPRequest, stream: TcpStream) -> Self {
         let header_value = http_request
             .get_header_value_key(HTTPTag::SecWebSocketKey)
             .expect("Could not find value with key");
         Self {
+            stream,
             sec_key: header_value,
             guid: String::from("258EAFA5-E914-47DA-95CA-C5AB0DC85B11"),
         }
     }
 
-    pub fn accept(&self, mut stream: TcpStream) {
+    pub fn accept(&mut self) {
         let sec_accept = self.generate_sec_accept();
         let response =  format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {}\r\n\r\n", sec_accept);
-        stream
+        self.stream
             .write_all(response.as_bytes())
             .expect("Could not write bytes");
-        stream.flush().expect("Could not flush bytes");
+        self.stream.flush().expect("Could not flush bytes");
     }
 
     fn generate_sec_accept(&self) -> String {
