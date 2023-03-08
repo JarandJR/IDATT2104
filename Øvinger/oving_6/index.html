@@ -11,6 +11,7 @@
     <canvas id="canvas" width="500px" height="500px" ></canvas>
     <script>
         var ws;
+        var connected = false;
 
         function Connect() {
             drawWithCoordinates(100, 200);
@@ -19,9 +20,10 @@
             ws.onmessage = event => {
                 alert('Message from server: ' + event.data);
                 const c = event.data;
-                //drawWithCourdinates(c.x, c.y);
+                drawWithCourdinates(c.x, c.y);
             };
             ws.onopen = () => ws.send('Hello');
+            window.connected = true;
         }
 
         const canvas = document.getElementById("canvas");
@@ -46,11 +48,12 @@
             ctx.lineCap = "round";
             ctx.strokeStyle = "black";
             ctx.moveTo(coord.x, coord.y);
-
-            //ws.send(coord);
-            //console.log(ws);
+            
+            if (connected)
+                ws.send(coord);
             reposition(event);
-            //ws.send(coord);
+            if (connected)
+                ws.send(coord);
             
             ctx.lineTo(coord.x, coord.y);
             ctx.stroke();

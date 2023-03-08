@@ -9,7 +9,7 @@ use std::net::TcpStream;
 
 use http_parser::{HTTPRequest, HTTPTag, Method};
 use pool::ThreadPool;
-use socket::SocketRequest;
+use socket::Socket;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
@@ -40,9 +40,9 @@ fn handle_connection(mut stream: TcpStream) {
     }
 }
 
-fn handle_socket_connection(mut stream: TcpStream, http_request: HTTPRequest) {
-    let socket_request = SocketRequest::new(http_request);
-    socket_request.send_message(stream);
+fn handle_socket_connection(stream: TcpStream, http_request: HTTPRequest) {
+    let socket = Socket::new(http_request);
+    socket.accept(stream);
 }
 
 fn handle_http_connection(mut stream: TcpStream, http_request: HTTPRequest) {
@@ -64,15 +64,4 @@ fn handle_http_connection(mut stream: TcpStream, http_request: HTTPRequest) {
         .write_all(response.as_bytes())
         .expect("Could not write bytes");
     stream.flush().expect("Could not flush bytes");
-}
-
-fn _get_header(request: &str) -> String {
-    let headers: Vec<&str> = request.split('\n').collect();
-    let mut header = String::new();
-    for i in &headers {
-        if i.trim() != "" {
-            header = format!("{header }\n{i}");
-        }
-    }
-    header
 }
