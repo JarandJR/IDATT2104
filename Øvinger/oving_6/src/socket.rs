@@ -11,35 +11,35 @@ use serde::{Serialize, Deserialize};
 
 use crate::http_parser::{HTTPRequest, HTTPTag};
 
-pub struct Socket {
-    stream: TcpStream,
+pub struct SocketServer {
     sec_key: String,
     guid: String,
     condvar: Arc<(Mutex<bool>, Condvar)>,
     messages: Arc<Mutex<VecDeque<Coordinate>>>,
+    clients: Arc<Mutex<VecDeque<(i32, TcpStream)>>>,
 }
 
-impl Socket {
-    pub fn new(mut http_request: HTTPRequest, stream: TcpStream) -> Self {
+impl SocketServer {
+    pub fn new(mut http_request: HTTPRequest, clients: Arc<Mutex<VecDeque<(i32, TcpStream)>>>) -> Self {
         let header_value = http_request
             .get_header_value_key(HTTPTag::SecWebSocketKey)
             .expect("Could not find value with key");
         Self {
-            stream,
             sec_key: header_value,
             guid: String::from("258EAFA5-E914-47DA-95CA-C5AB0DC85B11"),
             condvar: Arc::new((Mutex::new(true), Condvar::new())),
             messages: Arc::new(Mutex::new(VecDeque::new())),
+            clients
         }
     }
 
-    pub fn accept(&mut self) {
+    pub fn accept(&mut self, mut stream: TcpStream) {
         let sec_accept = self.generate_sec_accept();
         let response =  format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {}\r\n\r\n", sec_accept);
-        self.stream
+        stream
             .write_all(response.as_bytes())
             .expect("Could not write bytes");
-        self.stream.flush().expect("Could not flush bytes");
+        stream.flush().expect("Could not flush bytes");
     }
 
     fn generate_sec_accept(&self) -> String {
@@ -57,7 +57,7 @@ impl Socket {
     pub fn start_writer_thread(&self) {
         let condvar_copy = self.condvar.clone();
         let messages_copy = self.messages.clone();
-        let mut stream_copy = self.stream.try_clone().expect("Could not clone stream");
+        let mut clients_copy = self.clients.clone();
 
         thread::spawn(move || {
             loop {
@@ -72,7 +72,6 @@ impl Socket {
                 while let Some(message_to_send) = messages_copy.lock().unwrap().pop_front() {
                     // Serialize the message and send it to the client
                     let message_to_send_str = serde_json::to_string(&message_to_send).unwrap();
-                    println!("Message: {}", message_to_send_str);
 
                     let mut buf = Vec::new();
                     buf.push(129);
@@ -87,8 +86,10 @@ impl Socket {
                     }
                     buf.extend_from_slice(message_to_send_str.as_bytes());
 
-                    stream_copy.write_all(&buf).expect("Could not write message");
-                    stream_copy.flush().expect("Could not send data");
+                    for (client_id, stream) in clients_copy.lock().unwrap().iter_mut() {
+                        stream.write_all(&buf).expect("Could not write message");
+                        stream.flush().expect("Could not send data");
+                    }
                 }
              // Set the conditional variable back to default
              *lock.lock().unwrap() = true;   
@@ -96,11 +97,11 @@ impl Socket {
         });
     }
 
-    pub fn start_reader_thread(&self) {
-        let mut stream_copy = self.stream.try_clone().expect("Could not clone stream");
+    pub fn start_reader_thread(&self, mut stream: TcpStream) {
+        //let mut stream_copy = self.stream.try_clone().expect("Could not clone stream");
 
         loop {
-            let message = match Self::read_websocket_message(&mut stream_copy) {
+            let message = match Self::read_websocket_message(&mut stream) {
                 Ok(payload) => {
                     let message_str = std::str::from_utf8(&payload).unwrap();
                     Some(serde_json::from_str::<Coordinate>(message_str).unwrap())

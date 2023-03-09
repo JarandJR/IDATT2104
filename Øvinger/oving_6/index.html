@@ -18,7 +18,7 @@
             window.ws = new WebSocket('ws://127.0.0.1:7878');
             ws.onmessage = event => {
                 console.log('Message from server: ' + event.data);
-                const c = event.data;
+                const c = JSON.parse(event.data);
                 drawWithCoordinates(c.x, c.y);
             };
             ws.onopen = () => {
