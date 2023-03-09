@@ -17,13 +17,14 @@
             console.log("Trying to connect..");
             window.ws = new WebSocket('ws://127.0.0.1:7878');
             ws.onmessage = event => {
-                alert('Message from server: ' + event.data);
+                console.log('Message from server: ' + event.data);
                 const c = event.data;
-                drawWithCourdinates(c.x, c.y);
+                drawWithCoordinates(c.x, c.y);
             };
-            ws.onopen = () => ws.send('Hello');
-            window.connected = true;
-            console.log("Connected");
+            ws.onopen = () => {
+                window.connected = true;
+                console.log("Connected: " + window.connected);
+            };
         }
 
         const canvas = document.getElementById("canvas");
@@ -50,10 +51,10 @@
             ctx.moveTo(coord.x, coord.y);
             
             if (connected)
-                ws.send(coord);
+                window.ws.send(JSON.stringify(coord));
             reposition(event);
             if (connected)
-                ws.send(coord);
+            window.ws.send(JSON.stringify(coord));
             
             ctx.lineTo(coord.x, coord.y);
             ctx.stroke();
