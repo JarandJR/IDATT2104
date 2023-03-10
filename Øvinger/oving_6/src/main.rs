@@ -17,24 +17,22 @@ use socket::SocketServer;
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let pool = ThreadPool::new(5);
-    let streams: Arc<Mutex<VecDeque<(i32, TcpStream)>>> = Arc::new(Mutex::new(VecDeque::new()));
-    let mut id = 0;
+    let streams: Arc<Mutex<VecDeque<TcpStream>>> = Arc::new(Mutex::new(VecDeque::new()));
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         let stream_clone = stream.try_clone().expect("Could not clone stream");
 
-        streams.lock().unwrap().push_back((id, stream_clone));
+        streams.lock().unwrap().push_back(stream_clone);
         let streams = streams.clone();
         pool.post_task(move || {
             handle_connection(stream, streams);
         });
-        id += 1;
     }
     println!("Shutting down");
 }
 
-fn handle_connection(mut stream: TcpStream, streams: Arc<Mutex<VecDeque<(i32, TcpStream)>>>) {
+fn handle_connection(mut stream: TcpStream, streams: Arc<Mutex<VecDeque<TcpStream>>>) {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).expect("Could not read stream");
 
@@ -50,7 +48,7 @@ fn handle_connection(mut stream: TcpStream, streams: Arc<Mutex<VecDeque<(i32, Tc
     }
 }
 
-fn handle_socket_connection(stream: TcpStream, http_request: HTTPRequest, streams: Arc<Mutex<VecDeque<(i32, TcpStream)>>>) {
+fn handle_socket_connection(stream: TcpStream, http_request: HTTPRequest, streams: Arc<Mutex<VecDeque<TcpStream>>>) {
     let mut socket = SocketServer::new(http_request, streams);
     let stream_copy = stream.try_clone().expect("Could not clone stream");
     socket.accept(stream);

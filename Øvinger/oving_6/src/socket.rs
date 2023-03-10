@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, Condvar, Mutex},
-    thread,
-};
+use std::{sync::{Arc, Condvar, Mutex}, thread};
 use std::collections::VecDeque;
 use std::{io::prelude::*};
 use std::net::TcpStream;
@@ -11,16 +8,22 @@ use serde::{Serialize, Deserialize};
 
 use crate::http_parser::{HTTPRequest, HTTPTag};
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Coordinate {
+    x: i32,
+    y: i32
+}
+
 pub struct SocketServer {
     sec_key: String,
     guid: String,
     condvar: Arc<(Mutex<bool>, Condvar)>,
     messages: Arc<Mutex<VecDeque<Coordinate>>>,
-    clients: Arc<Mutex<VecDeque<(i32, TcpStream)>>>,
+    clients: Arc<Mutex<VecDeque<TcpStream>>>,
 }
 
 impl SocketServer {
-    pub fn new(mut http_request: HTTPRequest, clients: Arc<Mutex<VecDeque<(i32, TcpStream)>>>) -> Self {
+    pub fn new(mut http_request: HTTPRequest, clients: Arc<Mutex<VecDeque<TcpStream>>>) -> Self {
         let header_value = http_request
             .get_header_value_key(HTTPTag::SecWebSocketKey)
             .expect("Could not find value with key");
@@ -57,7 +60,7 @@ impl SocketServer {
     pub fn start_writer_thread(&self) {
         let condvar_copy = self.condvar.clone();
         let messages_copy = self.messages.clone();
-        let mut clients_copy = self.clients.clone();
+        let clients_copy = self.clients.clone();
 
         thread::spawn(move || {
             loop {
@@ -86,7 +89,7 @@ impl SocketServer {
                     }
                     buf.extend_from_slice(message_to_send_str.as_bytes());
 
-                    for (client_id, stream) in clients_copy.lock().unwrap().iter_mut() {
+                    for  stream in clients_copy.lock().unwrap().iter_mut() {
                         stream.write_all(&buf).expect("Could not write message");
                         stream.flush().expect("Could not send data");
                     }
@@ -98,8 +101,6 @@ impl SocketServer {
     }
 
     pub fn start_reader_thread(&self, mut stream: TcpStream) {
-        //let mut stream_copy = self.stream.try_clone().expect("Could not clone stream");
-
         loop {
             let message = match Self::read_websocket_message(&mut stream) {
                 Ok(payload) => {
@@ -116,7 +117,6 @@ impl SocketServer {
                 // Add the message to the queue
                 let mut messages = self.messages.lock().unwrap();
                 messages.push_front(message_received);
-                // Notify the writer thread that there are messages to send
                 self.notify_all_thread();
             }
         }
@@ -174,10 +174,4 @@ impl SocketServer {
             Err(std::io::Error::new(std::io::ErrorKind::Other, "Invalid WebSocket message"))
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Coordinate {
-    x: i32,
-    y: i32
 }
