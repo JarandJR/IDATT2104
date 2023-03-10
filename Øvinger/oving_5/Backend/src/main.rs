@@ -33,7 +33,6 @@ async fn post_code(request: String) -> String {
 
     let response = std::str::from_utf8(&output.stdout).expect("Could not parse");
     println!("{}", response);
-    
     strip_color_codes(response)
 }
 
