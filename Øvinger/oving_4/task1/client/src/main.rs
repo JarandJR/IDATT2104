@@ -7,9 +7,8 @@ async fn main() -> std::io::Result<()> {
     println!("Client");
     println!("Binding socket");
     let socket = UdpSocket::bind("0.0.0.0:7878").await?;
-
+    
     socket.connect("127.0.0.1:8080").await?;
-
     let mut stdin = stdin();
 
     println!("Ready to receive math pieces");
